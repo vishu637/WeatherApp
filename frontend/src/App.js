@@ -1,118 +1,80 @@
-﻿import React, { useState } from "react";
-import "./styles/App.css";
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { WiDaySunny } from 'react-icons/wi';
+import SearchBar from './components/SearchBar';
+import WeatherCard from './components/WeatherCard';
+import './styles/App.css';
 
-import { BACKEND_URL } from "./config";
+// Import images
+import sunnyBg from './assets/images/sunny.png';
+import cloudyBg from './assets/images/cloudy.png';
+import rainyBg from './assets/images/rainy.png';
 
-function App() {
+const App = () => {
+  const [weatherData, setWeatherData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [bgImage, setBgImage] = useState(sunnyBg);
 
-  const [city, setCity] = useState("");
-  const [weather, setWeather] = useState(null);
-  const [error, setError] = useState("");
+  const API_KEY = process.env.REACT_APP_OPENWEATHER_API_KEY;
 
-  // Fetch Weather Data
-  const getWeather = async () => {
-
-    if (city === "") {
-      setError("Please enter a city name");
-      setWeather(null);
-      return;
-    }
-
+  const fetchWeather = async (city) => {
+    setLoading(true);
+    setError(null);
     try {
-
-      setError("");
-
-      const response = await fetch(`${BACKEND_URL}/${encodeURIComponent(city)}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data?.error || data?.message || "City not found");
-        setWeather(null);
-      } else {
-        setWeather(data);
-      }
-
+      const response = await axios.get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}`
+      );
+      setWeatherData(response.data);
+      updateBackground(response.data.weather[0].main);
     } catch (err) {
-
-      setError("Something went wrong");
-      setWeather(null);
-
+      setWeatherData(null);
+      setError("City not found. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const updateBackground = (weatherCondition) => {
+    const condition = weatherCondition.toLowerCase();
+    if (condition.includes('clear')) {
+      setBgImage(sunnyBg);
+    } else if (condition.includes('cloud') || condition.includes('mist') || condition.includes('fog')) {
+      setBgImage(cloudyBg);
+    } else if (condition.includes('rain') || condition.includes('drizzle') || condition.includes('thunderstorm') || condition.includes('snow')) {
+      setBgImage(rainyBg);
+    } else {
+      setBgImage(sunnyBg);
+    }
+  };
+
+  // Fetch default city on load
+  useEffect(() => {
+    if(API_KEY) {
+      fetchWeather('London');
+    } else {
+      setError("API Key is missing!");
+    }
+  }, [API_KEY]);
+
   return (
-
-    <div className="app">
-
-      <div className="weather-container">
-
-        <h1>Weather App</h1>
-
-        {/* Search Box */}
-
-        <div className="search-box">
-
-          <input
-            type="text"
-            placeholder="Enter city name"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-          />
-
-          <button onClick={getWeather}>
-            Search
-          </button>
-
-        </div>
-
-        {/* Error Message */}
-
-        {error && (
-          <p className="error">
-            {error}
-          </p>
+    <div 
+      className="app-container" 
+      style={{ backgroundImage: `url(${bgImage})` }}
+    >
+      <div className="weather-app">
+        <SearchBar onSearch={fetchWeather} />
+        
+        {loading && <div className="loading-spinner"><WiDaySunny /></div>}
+        
+        {error && <div className="error-message">{error}</div>}
+        
+        {!loading && !error && weatherData && (
+          <WeatherCard data={weatherData} />
         )}
-
-        {/* Weather Data */}
-
-        {weather && (
-
-          <div className="weather-card">
-
-            <h2>{weather.city}, {weather.country}</h2>
-
-            <img
-              src={weather.weather?.iconUrl}
-              alt={weather.weather?.description || "Weather Icon"}
-            />
-
-            <h3>
-              {weather.temperature?.current} °C
-            </h3>
-
-            <p>
-              <strong>Condition:</strong>{" "}
-              {weather.weather?.description}
-            </p>
-
-            <p>
-              <strong>Humidity:</strong>{" "}
-              {weather.temperature?.humidity}%
-            </p>
-
-            <p>
-              <strong>Wind Speed:</strong>{" "}
-              {weather.wind?.speed} km/h
-            </p>
-
-          </div>
-
-        )}
-
       </div>
-
     </div>
   );
-}
+};
 
 export default App;

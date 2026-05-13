@@ -1,4 +1,5 @@
 ﻿import React from "react";
+import "../styles/ErrorMessage.css";
 
 function ErrorMessage({ message }) {
   if (!message) return null;
